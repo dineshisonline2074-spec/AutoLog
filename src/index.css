@@ -5369,3 +5369,126 @@ body.sidebar-open {
     max-height: calc(100vh - 24px);
   }
 }
+/* =========================================================
+   VEHICLE MODAL — FINAL VISIBILITY FIX
+   ========================================================= */
+
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 24px !important;
+
+  /* Use rgba instead of opacity so the modal itself stays solid */
+  background: rgba(15, 23, 42, 0.48) !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vehicle-modal {
+  position: relative !important;
+  z-index: 10000 !important;
+
+  width: min(760px, 100%) !important;
+  max-height: calc(100vh - 48px) !important;
+
+  background: #ffffff !important;
+  color: #172033 !important;
+
+  border-radius: 20px !important;
+  border: 1px solid #e5e7eb !important;
+
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.24),
+    0 8px 24px rgba(15, 23, 42, 0.12) !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  overflow-y: auto !important;
+
+  isolation: isolate;
+}
+
+/* Modal text */
+.vehicle-modal h2,
+.vehicle-modal p,
+.vehicle-modal label,
+.vehicle-modal span,
+.vehicle-modal strong {
+  opacity: 1 !important;
+}
+
+/* Form controls */
+.vehicle-modal input,
+.vehicle-modal select,
+.vehicle-modal textarea {
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  background: #ffffff !important;
+  color: #172033 !important;
+
+  border: 1px solid #d7dce5 !important;
+}
+
+/* Placeholder text */
+.vehicle-modal input::placeholder,
+.vehicle-modal textarea::placeholder {
+  opacity: 1 !important;
+  color: #98a2b3 !important;
+}
+
+/* Labels */
+.vehicle-modal label {
+  color: #344054 !important;
+}
+
+/* Input focus */
+.vehicle-modal input:focus,
+.vehicle-modal select:focus,
+.vehicle-modal textarea:focus {
+  outline: none !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+}
+
+/* Modal header */
+.vehicle-modal .modal-header {
+  opacity: 1 !important;
+}
+
+/* Modal footer */
+.vehicle-modal .modal-footer {
+  opacity: 1 !important;
+}
+
+/* Buttons must remain clickable */
+.vehicle-modal button,
+.vehicle-modal input,
+.vehicle-modal select {
+  pointer-events: auto !important;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: flex-start !important;
+    padding: 12px !important;
+  }
+
+  .vehicle-modal {
+    width: 100% !important;
+    max-height: calc(100vh - 24px) !important;
+    border-radius: 16px !important;
+  }
+}

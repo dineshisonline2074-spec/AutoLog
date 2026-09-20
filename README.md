@@ -1,16 +1,141 @@
-# React + Vite
+# AutoLog 🚗
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> A modern vehicle management web application to track vehicles, fuel, maintenance, and expenses in one place.
 
-Currently, two official plugins are available:
+## 🌐 Live Demo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Live Application:**  
+https://autolog-eta.vercel.app/
 
-## React Compiler
+## 📌 About
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+AutoLog is a full-stack vehicle management application designed to help vehicle owners keep track of their vehicle-related information and spending.
 
-## Expanding the ESLint configuration
+Instead of maintaining separate notes or spreadsheets, AutoLog brings vehicle details, fuel records, maintenance history, and expenses into one organized dashboard.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## ✨ Features
+
+- 🔐 Secure user authentication
+- 🚗 Multiple vehicle management
+- ⛽ Fuel log tracking
+- 🔧 Maintenance record tracking
+- 💰 Vehicle expense tracking
+- 📊 Dashboard spending overview
+- 📅 Maintenance reminders and status
+- 📈 Fuel and expense summaries
+- 👤 User profile management
+- 📱 Responsive design for desktop and mobile
+- 🔒 Supabase Row Level Security for user data
+
+## 🛠️ Tech Stack
+
+### Frontend
+- React
+- Vite
+- JavaScript
+- React Router
+- Lucide React
+- CSS
+
+### Backend & Database
+- Supabase
+- PostgreSQL
+- Supabase Authentication
+- Row Level Security (RLS)
+
+### Deployment
+- Vercel
+- GitHub
+
+## 🗂️ Main Modules
+
+### Dashboard
+Provides an overview of vehicles, spending, fuel expenses, maintenance costs, recent activity, and upcoming maintenance.
+
+### Vehicles
+Users can:
+
+- Add vehicles
+- Edit vehicle information
+- Delete vehicles
+- View vehicle details
+- Track current odometer readings
+
+### Fuel Logs
+Users can record:
+
+- Fuel date
+- Odometer reading
+- Fuel quantity
+- Price per liter
+- Total fuel cost
+- Fuel station
+- Notes
+
+### Maintenance
+Users can manage:
+
+- Service type
+- Service date
+- Odometer reading
+- Service cost
+- Service center
+- Next service date
+- Next service odometer
+- Notes
+
+### Expenses
+Users can track expenses such as:
+
+- Fuel
+- Maintenance
+- Insurance
+- Parking
+- Toll
+- Accessories
+- Cleaning
+- Repairs
+- Registration
+- Fines
+- Other expenses
+
+## 🔐 Security
+
+AutoLog uses Supabase Authentication and PostgreSQL Row Level Security.
+
+Each user's vehicle and financial records are protected so that users can access only their own data.
+
+Environment variables are used for Supabase configuration and sensitive credentials are not committed to the repository.
+
+## 📁 Project Structure
+
+```text
+AutoLog/
+├── public/
+├── src/
+│   ├── assets/
+│   ├── components/
+│   ├── lib/
+│   │   └── supabase.js
+│   ├── pages/
+│   │   ├── Dashboard.jsx
+│   │   ├── Vehicles.jsx
+│   │   ├── VehicleDetails.jsx
+│   │   ├── Fuel.jsx
+│   │   ├── Maintenance.jsx
+│   │   ├── Expenses.jsx
+│   │   ├── Profile.jsx
+│   │   ├── Login.jsx
+│   │   └── Register.jsx
+│   ├── services/
+│   │   ├── authService.js
+│   │   ├── vehicleService.js
+│   │   ├── fuelService.js
+│   │   ├── maintenanceService.js
+│   │   └── expenseService.js
+│   ├── styles/
+│   ├── App.jsx
+│   └── index.css
+├── .gitignore
+├── package.json
+└── README.md

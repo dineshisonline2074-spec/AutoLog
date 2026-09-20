@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
+  ArrowRight,
   Car,
   Fuel,
-  IndianRupee,
   Gauge,
+  IndianRupee,
   Wrench,
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -26,14 +27,13 @@ function formatCurrency(value) {
 function formatDate(date) {
   if (!date) return '-';
 
-  return new Date(`${date}T00:00:00`).toLocaleDateString(
-    'en-IN',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }
-  );
+  return new Date(
+    `${date}T00:00:00`
+  ).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function VehicleDetails() {
@@ -83,6 +83,11 @@ function VehicleDetails() {
         setMaintenanceRecords(maintenanceData);
         setExpenses(expenseData);
       } catch (err) {
+        console.error(
+          'Vehicle details loading failed:',
+          err
+        );
+
         setError(
           err.message ||
             'Unable to load vehicle details.'
@@ -144,26 +149,30 @@ function VehicleDetails() {
     totalFuel > 0 ? fuelCost / totalFuel : 0;
 
   const latestFuel = fuelLogs[0];
+  const latestMaintenance = maintenanceRecords[0];
 
-  const latestMaintenance =
-    maintenanceRecords[0];
-
-  const upcomingMaintenance = useMemo(() => {
+  const maintenanceStatus = useMemo(() => {
     const today = new Date();
 
     today.setHours(0, 0, 0, 0);
 
     return maintenanceRecords
-      .filter((item) => {
-        if (!item.next_service_date) {
-          return false;
-        }
-
-        return (
-          new Date(
-            `${item.next_service_date}T00:00:00`
-          ) >= today
+      .filter((item) => item.next_service_date)
+      .map((item) => {
+        const serviceDate = new Date(
+          `${item.next_service_date}T00:00:00`
         );
+
+        const daysUntilService = Math.ceil(
+          (serviceDate - today) /
+            (1000 * 60 * 60 * 24)
+        );
+
+        return {
+          ...item,
+          daysUntilService,
+          isOverdue: daysUntilService < 0,
+        };
       })
       .sort(
         (a, b) =>
@@ -173,8 +182,16 @@ function VehicleDetails() {
           new Date(
             `${b.next_service_date}T00:00:00`
           )
-      )[0];
+      );
   }, [maintenanceRecords]);
+
+  const nextMaintenance = maintenanceStatus.find(
+    (item) => !item.isOverdue
+  );
+
+  const overdueMaintenance = maintenanceStatus.filter(
+    (item) => item.isOverdue
+  );
 
   if (loading) {
     return (
@@ -254,7 +271,9 @@ function VehicleDetails() {
 
             <span>•</span>
 
-            <span>{vehicle.fuel_type}</span>
+            <span>
+              {vehicle.fuel_type || 'Fuel type not set'}
+            </span>
 
             {vehicle.year && (
               <>
@@ -266,6 +285,28 @@ function VehicleDetails() {
         </div>
       </section>
 
+      {overdueMaintenance.length > 0 && (
+        <div className="vehicle-details-warning">
+          <Wrench size={18} />
+
+          <div>
+            <strong>
+              {overdueMaintenance.length} maintenance
+              service
+              {overdueMaintenance.length !== 1
+                ? 's'
+                : ''}{' '}
+              overdue
+            </strong>
+
+            <span>
+              Check your maintenance records and schedule
+              the required service.
+            </span>
+          </div>
+        </div>
+      )}
+
       <section className="vehicle-stat-grid">
         <article className="vehicle-stat-card">
           <div className="vehicle-stat-icon blue">
@@ -274,6 +315,7 @@ function VehicleDetails() {
 
           <div>
             <span>Current odometer</span>
+
             <strong>
               {Number(
                 vehicle.current_odometer || 0
@@ -290,6 +332,7 @@ function VehicleDetails() {
 
           <div>
             <span>Total spending</span>
+
             <strong>
               {formatCurrency(totalCost)}
             </strong>
@@ -303,6 +346,7 @@ function VehicleDetails() {
 
           <div>
             <span>Fuel spending</span>
+
             <strong>
               {formatCurrency(fuelCost)}
             </strong>
@@ -316,6 +360,7 @@ function VehicleDetails() {
 
           <div>
             <span>Maintenance</span>
+
             <strong>
               {formatCurrency(maintenanceCost)}
             </strong>
@@ -328,7 +373,9 @@ function VehicleDetails() {
           <div className="card-header">
             <div>
               <h2>Vehicle information</h2>
-              <p>Basic information about this vehicle.</p>
+              <p>
+                Basic information about this vehicle.
+              </p>
             </div>
 
             <Car size={20} />
@@ -364,13 +411,32 @@ function VehicleDetails() {
 
             <div className="vehicle-info-item">
               <span>Fuel type</span>
-              <strong>{vehicle.fuel_type}</strong>
+              <strong>
+                {vehicle.fuel_type || 'Not set'}
+              </strong>
+            </div>
+
+            <div className="vehicle-info-item">
+              <span>Manufacturing year</span>
+              <strong>
+                {vehicle.year || 'Not added'}
+              </strong>
             </div>
 
             <div className="vehicle-info-item">
               <span>Purchase date</span>
               <strong>
                 {formatDate(vehicle.purchase_date)}
+              </strong>
+            </div>
+
+            <div className="vehicle-info-item">
+              <span>Current odometer</span>
+              <strong>
+                {Number(
+                  vehicle.current_odometer || 0
+                ).toLocaleString('en-IN')}{' '}
+                km
               </strong>
             </div>
           </div>
@@ -418,7 +484,7 @@ function VehicleDetails() {
           </div>
 
           <Link
-            to="/fuel"
+            to={`/fuel?vehicle=${vehicleId}`}
             className="card-link"
           >
             Manage fuel records
@@ -430,7 +496,9 @@ function VehicleDetails() {
           <div className="card-header">
             <div>
               <h2>Maintenance summary</h2>
-              <p>Keep your next service in sight.</p>
+              <p>
+                Keep your next service in sight.
+              </p>
             </div>
 
             <Wrench size={20} />
@@ -455,9 +523,7 @@ function VehicleDetails() {
               <span>Last service</span>
               <strong>
                 {latestMaintenance
-                  ? formatDate(
-                      latestMaintenance.date
-                    )
+                  ? formatDate(latestMaintenance.date)
                   : 'No records'}
               </strong>
             </div>
@@ -465,9 +531,9 @@ function VehicleDetails() {
             <div>
               <span>Next service</span>
               <strong>
-                {upcomingMaintenance
+                {nextMaintenance
                   ? formatDate(
-                      upcomingMaintenance.next_service_date
+                      nextMaintenance.next_service_date
                     )
                   : 'Not scheduled'}
               </strong>
@@ -475,7 +541,7 @@ function VehicleDetails() {
           </div>
 
           <Link
-            to="/maintenance"
+            to={`/maintenance?vehicle=${vehicleId}`}
             className="card-link"
           >
             Manage maintenance
@@ -487,7 +553,9 @@ function VehicleDetails() {
           <div className="card-header">
             <div>
               <h2>Expense summary</h2>
-              <p>Other costs related to this vehicle.</p>
+              <p>
+                Other costs related to this vehicle.
+              </p>
             </div>
 
             <IndianRupee size={20} />
@@ -507,6 +575,15 @@ function VehicleDetails() {
             </div>
 
             <div>
+              <span>Fuel + maintenance</span>
+              <strong>
+                {formatCurrency(
+                  fuelCost + maintenanceCost
+                )}
+              </strong>
+            </div>
+
+            <div>
               <span>Overall spending</span>
               <strong>
                 {formatCurrency(totalCost)}
@@ -515,7 +592,7 @@ function VehicleDetails() {
           </div>
 
           <Link
-            to="/expenses"
+            to={`/expenses?vehicle=${vehicleId}`}
             className="card-link"
           >
             Manage expenses

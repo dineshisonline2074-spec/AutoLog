@@ -3,6 +3,8 @@ import {
   ArrowRight,
   Car,
   Edit3,
+  Fuel,
+  Gauge,
   Plus,
   Trash2,
   X,
@@ -55,7 +57,9 @@ function Vehicles() {
       const currentUser = await getCurrentUser();
 
       if (!currentUser) {
-        setError('Your session has expired. Please sign in again.');
+        setError(
+          'Your session has expired. Please sign in again.'
+        );
         return;
       }
 
@@ -64,7 +68,10 @@ function Vehicles() {
       const data = await getVehicles(currentUser.id);
       setVehicles(data);
     } catch (err) {
-      setError(err.message || 'Unable to load your vehicles.');
+      console.error('Vehicle loading failed:', err);
+      setError(
+        err.message || 'Unable to load your vehicles.'
+      );
     } finally {
       setLoading(false);
     }
@@ -72,7 +79,7 @@ function Vehicles() {
 
   function openAddModal() {
     setEditingVehicle(null);
-    setForm(initialForm);
+    setForm({ ...initialForm });
     setError('');
     setSuccess('');
     setShowModal(true);
@@ -86,9 +93,11 @@ function Vehicles() {
       brand: vehicle.brand || '',
       model: vehicle.model || '',
       year: vehicle.year || '',
-      registration_number: vehicle.registration_number || '',
+      registration_number:
+        vehicle.registration_number || '',
       fuel_type: vehicle.fuel_type || 'Petrol',
-      current_odometer: vehicle.current_odometer || '',
+      current_odometer:
+        vehicle.current_odometer ?? '',
       purchase_date: vehicle.purchase_date || '',
     });
 
@@ -102,7 +111,7 @@ function Vehicles() {
 
     setShowModal(false);
     setEditingVehicle(null);
-    setForm(initialForm);
+    setForm({ ...initialForm });
   }
 
   function handleChange(event) {
@@ -127,8 +136,22 @@ function Vehicles() {
       return;
     }
 
-    if (!form.current_odometer) {
-      setError('Please enter the current odometer reading.');
+    if (
+      form.current_odometer === '' ||
+      Number(form.current_odometer) < 0
+    ) {
+      setError(
+        'Please enter a valid current odometer reading.'
+      );
+      return;
+    }
+
+    if (
+      form.year &&
+      (Number(form.year) < 1900 ||
+        Number(form.year) > new Date().getFullYear() + 1)
+    ) {
+      setError('Please enter a valid manufacturing year.');
       return;
     }
 
@@ -179,14 +202,17 @@ function Vehicles() {
         setSuccess('Vehicle added successfully.');
       }
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setShowModal(false);
         setEditingVehicle(null);
-        setForm(initialForm);
+        setForm({ ...initialForm });
         setSuccess('');
       }, 700);
     } catch (err) {
-      setError(err.message || 'Unable to save the vehicle.');
+      console.error('Vehicle save failed:', err);
+      setError(
+        err.message || 'Unable to save the vehicle.'
+      );
     } finally {
       setSaving(false);
     }
@@ -208,16 +234,23 @@ function Vehicles() {
       await deleteVehicle(vehicle.id, user.id);
 
       setVehicles((previous) =>
-        previous.filter((item) => item.id !== vehicle.id)
+        previous.filter(
+          (item) => item.id !== vehicle.id
+        )
       );
 
-      setSuccess(`${vehicle.name} was deleted successfully.`);
+      setSuccess(
+        `${vehicle.name} was deleted successfully.`
+      );
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setSuccess('');
       }, 2500);
     } catch (err) {
-      setError(err.message || 'Unable to delete the vehicle.');
+      console.error('Vehicle deletion failed:', err);
+      setError(
+        err.message || 'Unable to delete the vehicle.'
+      );
     }
   }
 
@@ -231,7 +264,7 @@ function Vehicles() {
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page vehicles-page">
       <section className="page-header dashboard-header">
         <div>
           <p className="eyebrow">MY VEHICLES</p>
@@ -239,7 +272,8 @@ function Vehicles() {
           <h1>Your vehicles</h1>
 
           <p>
-            Add and manage all your vehicles from one place.
+            Manage your vehicles and keep all their important
+            information in one place.
           </p>
         </div>
 
@@ -255,12 +289,15 @@ function Vehicles() {
 
       {error && (
         <div className="dashboard-error" role="alert">
-          {error}
+          <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="dashboard-success" role="status">
+        <div
+          className="dashboard-success"
+          role="status"
+        >
           {success}
         </div>
       )}
@@ -292,7 +329,10 @@ function Vehicles() {
       ) : (
         <section className="vehicles-grid">
           {vehicles.map((vehicle) => (
-            <article className="vehicle-card" key={vehicle.id}>
+            <article
+              className="vehicle-card"
+              key={vehicle.id}
+            >
               <div className="vehicle-card-top">
                 <div className="vehicle-card-icon">
                   <Car size={25} />
@@ -304,7 +344,9 @@ function Vehicles() {
                     className="icon-action-button"
                     aria-label={`Edit ${vehicle.name}`}
                     title="Edit vehicle"
-                    onClick={() => openEditModal(vehicle)}
+                    onClick={() =>
+                      openEditModal(vehicle)
+                    }
                   >
                     <Edit3 size={17} />
                   </button>
@@ -314,7 +356,9 @@ function Vehicles() {
                     className="icon-action-button danger"
                     aria-label={`Delete ${vehicle.name}`}
                     title="Delete vehicle"
-                    onClick={() => handleDelete(vehicle)}
+                    onClick={() =>
+                      handleDelete(vehicle)
+                    }
                   >
                     <Trash2 size={17} />
                   </button>
@@ -332,18 +376,24 @@ function Vehicles() {
                 <div className="vehicle-details-list">
                   <div>
                     <span>Registration</span>
+
                     <strong>
-                      {vehicle.registration_number || 'Not added'}
+                      {vehicle.registration_number ||
+                        'Not added'}
                     </strong>
                   </div>
 
                   <div>
                     <span>Fuel type</span>
-                    <strong>{vehicle.fuel_type}</strong>
+
+                    <strong>
+                      {vehicle.fuel_type || 'Not set'}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Odometer</span>
+
                     <strong>
                       {Number(
                         vehicle.current_odometer || 0
@@ -354,8 +404,25 @@ function Vehicles() {
 
                   <div>
                     <span>Year</span>
-                    <strong>{vehicle.year || 'Not added'}</strong>
+
+                    <strong>
+                      {vehicle.year || 'Not added'}
+                    </strong>
                   </div>
+                </div>
+
+                <div className="vehicle-card-highlight">
+                  <div>
+                    <Gauge size={15} />
+                    <span>Current reading</span>
+                  </div>
+
+                  <strong>
+                    {Number(
+                      vehicle.current_odometer || 0
+                    ).toLocaleString('en-IN')}{' '}
+                    km
+                  </strong>
                 </div>
               </div>
 
@@ -402,7 +469,8 @@ function Vehicles() {
                 </h2>
 
                 <p>
-                  Keep your vehicle information up to date.
+                  Keep your vehicle information accurate and
+                  up to date.
                 </p>
               </div>
 
@@ -480,14 +548,16 @@ function Vehicles() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="year">Manufacturing year</label>
+                  <label htmlFor="year">
+                    Manufacturing year
+                  </label>
 
                   <input
                     id="year"
                     name="year"
                     type="number"
                     min="1900"
-                    max="2100"
+                    max={new Date().getFullYear() + 1}
                     placeholder="e.g. 2024"
                     value={form.year}
                     onChange={handleChange}
@@ -495,7 +565,9 @@ function Vehicles() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="fuel_type">Fuel type</label>
+                  <label htmlFor="fuel_type">
+                    Fuel type
+                  </label>
 
                   <select
                     id="fuel_type"
@@ -506,7 +578,9 @@ function Vehicles() {
                     <option value="Petrol">Petrol</option>
                     <option value="Diesel">Diesel</option>
                     <option value="CNG">CNG</option>
-                    <option value="Electric">Electric</option>
+                    <option value="Electric">
+                      Electric
+                    </option>
                     <option value="Hybrid">Hybrid</option>
                     <option value="Other">Other</option>
                   </select>
@@ -563,8 +637,8 @@ function Vehicles() {
                   {saving
                     ? 'Saving...'
                     : editingVehicle
-                      ? 'Save changes'
-                      : 'Add vehicle'}
+                    ? 'Save changes'
+                    : 'Add vehicle'}
                 </button>
               </div>
             </form>

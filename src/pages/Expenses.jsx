@@ -8,6 +8,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { getCurrentUser } from '../services/authService';
 import { getVehicles } from '../services/vehicleService';
@@ -51,17 +52,18 @@ function formatCurrency(value) {
 function formatDate(date) {
   if (!date) return '-';
 
-  return new Date(`${date}T00:00:00`).toLocaleDateString(
-    'en-IN',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }
-  );
+  return new Date(
+    `${date}T00:00:00`
+  ).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function Expenses() {
+  const [searchParams] = useSearchParams();
+
   const [user, setUser] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -82,7 +84,19 @@ function Expenses() {
   const [editingExpense, setEditingExpense] =
     useState(null);
 
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState({
+    ...initialForm,
+  });
+
+  useEffect(() => {
+    const vehicleFromUrl = searchParams.get('vehicle');
+
+    if (vehicleFromUrl) {
+      setSelectedVehicle(vehicleFromUrl);
+    } else {
+      setSelectedVehicle('all');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadExpensesPage();
@@ -113,6 +127,11 @@ function Expenses() {
       setVehicles(vehicleData);
       setExpenses(expenseData);
     } catch (err) {
+      console.error(
+        'Expenses page loading failed:',
+        err
+      );
+
       setError(
         err.message || 'Unable to load expenses.'
       );
@@ -166,10 +185,15 @@ function Expenses() {
         Number(expense.amount || 0);
     });
 
-    return Object.entries(breakdown)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+    return Object.entries(breakdown).sort(
+      (a, b) => b[1] - a[1]
+    );
   }, [filteredExpenses]);
+
+  const topCategories = useMemo(
+    () => categoryBreakdown.slice(0, 5),
+    [categoryBreakdown]
+  );
 
   function getVehicleName(vehicleId) {
     const vehicle = vehicles.find(
@@ -203,7 +227,7 @@ function Expenses() {
     setForm({
       vehicle_id: expense.vehicle_id || '',
       category: expense.category || '',
-      amount: expense.amount || '',
+      amount: expense.amount ?? '',
       date: expense.date || '',
       description: expense.description || '',
     });
@@ -218,7 +242,9 @@ function Expenses() {
 
     setShowModal(false);
     setEditingExpense(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+    });
   }
 
   function handleChange(event) {
@@ -244,12 +270,19 @@ function Expenses() {
     }
 
     if (!form.category) {
-      setError('Please select an expense category.');
+      setError(
+        'Please select an expense category.'
+      );
       return;
     }
 
-    if (!form.amount || Number(form.amount) <= 0) {
-      setError('Please enter a valid expense amount.');
+    if (
+      form.amount === '' ||
+      Number(form.amount) <= 0
+    ) {
+      setError(
+        'Please enter a valid expense amount.'
+      );
       return;
     }
 
@@ -308,15 +341,23 @@ function Expenses() {
         );
       }
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setShowModal(false);
         setEditingExpense(null);
-        setForm(initialForm);
+        setForm({
+          ...initialForm,
+        });
         setSuccess('');
       }, 700);
     } catch (err) {
+      console.error(
+        'Expense save failed:',
+        err
+      );
+
       setError(
-        err.message || 'Unable to save the expense.'
+        err.message ||
+          'Unable to save the expense.'
       );
     } finally {
       setSaving(false);
@@ -338,7 +379,10 @@ function Expenses() {
       setError('');
       setSuccess('');
 
-      await deleteExpense(expense.id, user.id);
+      await deleteExpense(
+        expense.id,
+        user.id
+      );
 
       setExpenses((previous) =>
         previous.filter(
@@ -350,12 +394,18 @@ function Expenses() {
         'Expense deleted successfully.'
       );
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setSuccess('');
       }, 2500);
     } catch (err) {
+      console.error(
+        'Expense deletion failed:',
+        err
+      );
+
       setError(
-        err.message || 'Unable to delete the expense.'
+        err.message ||
+          'Unable to delete the expense.'
       );
     }
   }
@@ -370,7 +420,7 @@ function Expenses() {
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page expenses-page">
       <section className="page-header dashboard-header">
         <div>
           <p className="eyebrow">EXPENSES</p>
@@ -395,13 +445,19 @@ function Expenses() {
       </section>
 
       {error && (
-        <div className="dashboard-error" role="alert">
+        <div
+          className="dashboard-error"
+          role="alert"
+        >
           {error}
         </div>
       )}
 
       {success && (
-        <div className="dashboard-success" role="status">
+        <div
+          className="dashboard-success"
+          role="status"
+        >
           {success}
         </div>
       )}
@@ -420,13 +476,13 @@ function Expenses() {
               expenses.
             </p>
 
-            <a
-              href="/vehicles"
+            <Link
+              to="/vehicles"
               className="small-primary-button"
             >
               <Plus size={17} />
               Add vehicle
-            </a>
+            </Link>
           </div>
         </section>
       ) : (
@@ -441,7 +497,9 @@ function Expenses() {
                 id="expense-vehicle-filter"
                 value={selectedVehicle}
                 onChange={(event) =>
-                  setSelectedVehicle(event.target.value)
+                  setSelectedVehicle(
+                    event.target.value
+                  )
                 }
               >
                 <option value="all">
@@ -468,22 +526,37 @@ function Expenses() {
                 id="expense-category-filter"
                 value={selectedCategory}
                 onChange={(event) =>
-                  setSelectedCategory(event.target.value)
+                  setSelectedCategory(
+                    event.target.value
+                  )
                 }
               >
                 <option value="all">
                   All categories
                 </option>
 
-                {expenseCategories.map((category) => (
-                  <option
-                    value={category}
-                    key={category}
-                  >
-                    {category}
-                  </option>
-                ))}
+                {expenseCategories.map(
+                  (category) => (
+                    <option
+                      value={category}
+                      key={category}
+                    >
+                      {category}
+                    </option>
+                  )
+                )}
               </select>
+            </div>
+
+            <div className="expense-filter-summary">
+              {selectedVehicle === 'all'
+                ? 'All vehicles'
+                : getVehicleName(selectedVehicle)}
+              {' · '}
+              {filteredExpenses.length}{' '}
+              {filteredExpenses.length === 1
+                ? 'record'
+                : 'records'}
             </div>
           </section>
 
@@ -539,7 +612,7 @@ function Expenses() {
                 <span>Top category</span>
 
                 <strong>
-                  {categoryBreakdown[0]?.[0] ||
+                  {topCategories[0]?.[0] ||
                     'No data'}
                 </strong>
               </div>
@@ -550,6 +623,7 @@ function Expenses() {
             <div className="card-header">
               <div>
                 <h2>Expense breakdown</h2>
+
                 <p>
                   Categories with the highest spending.
                 </p>
@@ -558,18 +632,22 @@ function Expenses() {
               <Receipt size={20} />
             </div>
 
-            {categoryBreakdown.length === 0 ? (
+            {topCategories.length === 0 ? (
               <div className="expense-breakdown-empty">
                 <Receipt size={28} />
-                <span>No expense data yet.</span>
+
+                <span>
+                  No expense data yet.
+                </span>
               </div>
             ) : (
               <div className="expense-breakdown-list">
-                {categoryBreakdown.map(
+                {topCategories.map(
                   ([category, amount]) => {
                     const percentage =
                       totalAmount > 0
-                        ? (amount / totalAmount) * 100
+                        ? (amount / totalAmount) *
+                          100
                         : 0;
 
                     return (
@@ -578,7 +656,9 @@ function Expenses() {
                         key={category}
                       >
                         <div className="expense-breakdown-top">
-                          <span>{category}</span>
+                          <span>
+                            {category}
+                          </span>
 
                           <strong>
                             {formatCurrency(amount)}
@@ -598,7 +678,8 @@ function Expenses() {
                         </div>
 
                         <span className="expense-percentage">
-                          {percentage.toFixed(1)}% of total
+                          {percentage.toFixed(1)}% of
+                          total
                         </span>
                       </div>
                     );
@@ -656,70 +737,78 @@ function Expenses() {
                   </thead>
 
                   <tbody>
-                    {filteredExpenses.map((expense) => (
-                      <tr key={expense.id}>
-                        <td>
-                          {formatDate(expense.date)}
-                        </td>
-
-                        <td>
-                          <strong>
-                            {getVehicleName(
-                              expense.vehicle_id
+                    {filteredExpenses.map(
+                      (expense) => (
+                        <tr key={expense.id}>
+                          <td>
+                            {formatDate(
+                              expense.date
                             )}
-                          </strong>
-                        </td>
+                          </td>
 
-                        <td>
-                          <span className="expense-category-badge">
-                            {expense.category}
-                          </span>
-                        </td>
+                          <td>
+                            <strong>
+                              {getVehicleName(
+                                expense.vehicle_id
+                              )}
+                            </strong>
+                          </td>
 
-                        <td>
-                          <strong className="expense-amount">
-                            {formatCurrency(
-                              expense.amount
-                            )}
-                          </strong>
-                        </td>
+                          <td>
+                            <span className="expense-category-badge">
+                              {expense.category}
+                            </span>
+                          </td>
 
-                        <td>
-                          <span className="expense-description">
-                            {expense.description ||
-                              'No description'}
-                          </span>
-                        </td>
+                          <td>
+                            <strong className="expense-amount">
+                              {formatCurrency(
+                                expense.amount
+                              )}
+                            </strong>
+                          </td>
 
-                        <td>
-                          <div className="table-actions">
-                            <button
-                              type="button"
-                              className="icon-action-button"
-                              title="Edit expense"
-                              aria-label="Edit expense"
-                              onClick={() =>
-                                openEditModal(expense)
-                              }
-                            >
-                              <Edit3 size={16} />
-                            </button>
+                          <td>
+                            <span className="expense-description">
+                              {expense.description ||
+                                'No description'}
+                            </span>
+                          </td>
 
-                            <button
-                              type="button"
-                              className="icon-action-button danger"
-                              title="Delete expense"
-                              aria-label="Delete expense"
-                              onClick={() =>
-                                handleDelete(expense)
-                              }
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          <td>
+                            <div className="table-actions">
+                              <button
+                                type="button"
+                                className="icon-action-button"
+                                title="Edit expense"
+                                aria-label="Edit expense"
+                                onClick={() =>
+                                  openEditModal(
+                                    expense
+                                  )
+                                }
+                              >
+                                <Edit3 size={16} />
+                              </button>
+
+                              <button
+                                type="button"
+                                className="icon-action-button danger"
+                                title="Delete expense"
+                                aria-label="Delete expense"
+                                onClick={() =>
+                                  handleDelete(
+                                    expense
+                                  )
+                                }
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -733,7 +822,9 @@ function Expenses() {
           className="modal-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target === event.currentTarget
+            ) {
               closeModal();
             }
           }}
@@ -823,14 +914,16 @@ function Expenses() {
                       Select category
                     </option>
 
-                    {expenseCategories.map((category) => (
-                      <option
-                        value={category}
-                        key={category}
-                      >
-                        {category}
-                      </option>
-                    ))}
+                    {expenseCategories.map(
+                      (category) => (
+                        <option
+                          value={category}
+                          key={category}
+                        >
+                          {category}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
 
@@ -846,7 +939,7 @@ function Expenses() {
                       id="expense-amount"
                       name="amount"
                       type="number"
-                      min="0"
+                      min="0.01"
                       step="0.01"
                       placeholder="e.g. 1500"
                       value={form.amount}
@@ -905,8 +998,8 @@ function Expenses() {
                   {saving
                     ? 'Saving...'
                     : editingExpense
-                      ? 'Save changes'
-                      : 'Add expense'}
+                    ? 'Save changes'
+                    : 'Add expense'}
                 </button>
               </div>
             </form>

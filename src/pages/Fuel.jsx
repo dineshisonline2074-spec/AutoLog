@@ -3,10 +3,12 @@ import {
   Car,
   Edit3,
   Fuel as FuelIcon,
+  IndianRupee,
   Plus,
   Trash2,
   X,
 } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { getCurrentUser } from '../services/authService';
 import { getVehicles } from '../services/vehicleService';
@@ -39,17 +41,18 @@ function formatCurrency(value) {
 function formatDate(date) {
   if (!date) return '-';
 
-  return new Date(`${date}T00:00:00`).toLocaleDateString(
-    'en-IN',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }
-  );
+  return new Date(
+    `${date}T00:00:00`
+  ).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function Fuel() {
+  const [searchParams] = useSearchParams();
+
   const [user, setUser] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [fuelLogs, setFuelLogs] = useState([]);
@@ -66,7 +69,19 @@ function Fuel() {
   const [showModal, setShowModal] = useState(false);
   const [editingLog, setEditingLog] = useState(null);
 
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState({
+    ...initialForm,
+  });
+
+  useEffect(() => {
+    const vehicleFromUrl = searchParams.get('vehicle');
+
+    if (vehicleFromUrl) {
+      setSelectedVehicle(vehicleFromUrl);
+    } else {
+      setSelectedVehicle('all');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadFuelPage();
@@ -88,14 +103,17 @@ function Fuel() {
 
       setUser(currentUser);
 
-      const [vehicleData, fuelData] = await Promise.all([
-        getVehicles(currentUser.id),
-        getFuelLogs(currentUser.id),
-      ]);
+      const [vehicleData, fuelData] =
+        await Promise.all([
+          getVehicles(currentUser.id),
+          getFuelLogs(currentUser.id),
+        ]);
 
       setVehicles(vehicleData);
       setFuelLogs(fuelData);
     } catch (err) {
+      console.error('Fuel page loading failed:', err);
+
       setError(
         err.message || 'Unable to load fuel records.'
       );
@@ -137,6 +155,8 @@ function Fuel() {
   const averagePrice =
     totalFuel > 0 ? totalCost / totalFuel : 0;
 
+  const latestRecord = filteredLogs[0];
+
   function getVehicleName(vehicleId) {
     const vehicle = vehicles.find(
       (item) => item.id === vehicleId
@@ -169,10 +189,10 @@ function Fuel() {
     setForm({
       vehicle_id: log.vehicle_id || '',
       date: log.date || '',
-      odometer: log.odometer || '',
-      liters: log.liters || '',
-      price_per_liter: log.price_per_liter || '',
-      total_cost: log.total_cost || '',
+      odometer: log.odometer ?? '',
+      liters: log.liters ?? '',
+      price_per_liter: log.price_per_liter ?? '',
+      total_cost: log.total_cost ?? '',
       fuel_station: log.fuel_station || '',
       notes: log.notes || '',
     });
@@ -187,7 +207,9 @@ function Fuel() {
 
     setShowModal(false);
     setEditingLog(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+    });
   }
 
   function handleChange(event) {
@@ -228,6 +250,8 @@ function Fuel() {
           updated.total_cost = (
             liters * price
           ).toFixed(2);
+        } else {
+          updated.total_cost = '';
         }
       }
 
@@ -253,21 +277,47 @@ function Fuel() {
       return;
     }
 
-    if (!form.odometer) {
-      setError('Please enter the odometer reading.');
-      return;
-    }
-
-    if (!form.liters || Number(form.liters) <= 0) {
-      setError('Please enter a valid fuel quantity.');
+    if (
+      form.odometer === '' ||
+      Number(form.odometer) < 0
+    ) {
+      setError(
+        'Please enter a valid odometer reading.'
+      );
       return;
     }
 
     if (
-      !form.price_per_liter ||
+      form.liters === '' ||
+      Number(form.liters) <= 0
+    ) {
+      setError(
+        'Please enter a valid fuel quantity.'
+      );
+      return;
+    }
+
+    if (
+      form.price_per_liter === '' ||
       Number(form.price_per_liter) <= 0
     ) {
-      setError('Please enter a valid price per liter.');
+      setError(
+        'Please enter a valid price per liter.'
+      );
+      return;
+    }
+
+    const calculatedTotal =
+      Number(form.liters) *
+      Number(form.price_per_liter);
+
+    if (
+      !Number.isFinite(calculatedTotal) ||
+      calculatedTotal <= 0
+    ) {
+      setError(
+        'Unable to calculate the total fuel cost.'
+      );
       return;
     }
 
@@ -281,8 +331,12 @@ function Fuel() {
         date: form.date,
         odometer: Number(form.odometer),
         liters: Number(form.liters),
-        price_per_liter: Number(form.price_per_liter),
-        total_cost: Number(form.total_cost),
+        price_per_liter: Number(
+          form.price_per_liter
+        ),
+        total_cost: Number(
+          calculatedTotal.toFixed(2)
+        ),
         fuel_station:
           form.fuel_station.trim() || null,
         notes: form.notes.trim() || null,
@@ -322,15 +376,20 @@ function Fuel() {
         );
       }
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setShowModal(false);
         setEditingLog(null);
-        setForm(initialForm);
+        setForm({
+          ...initialForm,
+        });
         setSuccess('');
       }, 700);
     } catch (err) {
+      console.error('Fuel record save failed:', err);
+
       setError(
-        err.message || 'Unable to save the fuel record.'
+        err.message ||
+          'Unable to save the fuel record.'
       );
     } finally {
       setSaving(false);
@@ -355,19 +414,27 @@ function Fuel() {
       await deleteFuelLog(log.id, user.id);
 
       setFuelLogs((previous) =>
-        previous.filter((item) => item.id !== log.id)
+        previous.filter(
+          (item) => item.id !== log.id
+        )
       );
 
       setSuccess(
         'Fuel record deleted successfully.'
       );
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setSuccess('');
       }, 2500);
     } catch (err) {
+      console.error(
+        'Fuel record deletion failed:',
+        err
+      );
+
       setError(
-        err.message || 'Unable to delete the fuel record.'
+        err.message ||
+          'Unable to delete the fuel record.'
       );
     }
   }
@@ -382,7 +449,7 @@ function Fuel() {
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page fuel-page">
       <section className="page-header dashboard-header">
         <div>
           <p className="eyebrow">FUEL TRACKER</p>
@@ -390,8 +457,8 @@ function Fuel() {
           <h1>Fuel records</h1>
 
           <p>
-            Track every refill, fuel cost and fuel station
-            in one place.
+            Track every refill, fuel cost and station in
+            one place.
           </p>
         </div>
 
@@ -407,13 +474,19 @@ function Fuel() {
       </section>
 
       {error && (
-        <div className="dashboard-error" role="alert">
+        <div
+          className="dashboard-error"
+          role="alert"
+        >
           {error}
         </div>
       )}
 
       {success && (
-        <div className="dashboard-success" role="status">
+        <div
+          className="dashboard-success"
+          role="status"
+        >
           {success}
         </div>
       )}
@@ -432,13 +505,13 @@ function Fuel() {
               fuel records.
             </p>
 
-            <a
-              href="/vehicles"
+            <Link
+              to="/vehicles"
               className="small-primary-button"
             >
               <Plus size={17} />
               Add vehicle
-            </a>
+            </Link>
           </div>
         </section>
       ) : (
@@ -453,7 +526,9 @@ function Fuel() {
                 id="vehicle-filter"
                 value={selectedVehicle}
                 onChange={(event) =>
-                  setSelectedVehicle(event.target.value)
+                  setSelectedVehicle(
+                    event.target.value
+                  )
                 }
               >
                 <option value="all">
@@ -470,6 +545,14 @@ function Fuel() {
                 ))}
               </select>
             </div>
+
+            <div className="fuel-filter-summary">
+              {selectedVehicle === 'all'
+                ? 'Showing all vehicles'
+                : `Showing ${getVehicleName(
+                    selectedVehicle
+                  )}`}
+            </div>
           </section>
 
           <section className="fuel-stat-grid">
@@ -480,6 +563,7 @@ function Fuel() {
 
               <div>
                 <span>Total fuel</span>
+
                 <strong>
                   {totalFuel.toFixed(1)} L
                 </strong>
@@ -488,11 +572,12 @@ function Fuel() {
 
             <article className="fuel-stat-card">
               <div className="fuel-stat-icon green">
-                <IndianRupeeIcon />
+                <IndianRupee size={21} />
               </div>
 
               <div>
                 <span>Total cost</span>
+
                 <strong>
                   {formatCurrency(totalCost)}
                 </strong>
@@ -501,14 +586,15 @@ function Fuel() {
 
             <article className="fuel-stat-card">
               <div className="fuel-stat-icon orange">
-                <IndianRupeeIcon />
+                <IndianRupee size={21} />
               </div>
 
               <div>
                 <span>Average price</span>
+
                 <strong>
                   {formatCurrency(averagePrice)}
-                  /L
+                  <small>/L</small>
                 </strong>
               </div>
             </article>
@@ -520,7 +606,10 @@ function Fuel() {
 
               <div>
                 <span>Records</span>
-                <strong>{filteredLogs.length}</strong>
+
+                <strong>
+                  {filteredLogs.length}
+                </strong>
               </div>
             </article>
           </section>
@@ -529,8 +618,13 @@ function Fuel() {
             <div className="card-header">
               <div>
                 <h2>Fuel history</h2>
+
                 <p>
-                  Your latest fuel transactions.
+                  {latestRecord
+                    ? `Latest refill: ${formatDate(
+                        latestRecord.date
+                      )}`
+                    : 'Your latest fuel transactions.'}
                 </p>
               </div>
 
@@ -663,7 +757,9 @@ function Fuel() {
           className="modal-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target === event.currentTarget
+            ) {
               closeModal();
             }
           }}
@@ -800,14 +896,16 @@ function Fuel() {
                     step="0.01"
                     placeholder="e.g. 104.50"
                     value={form.price_per_liter}
-                    onChange={handleFuelInputChange}
+                    onChange={
+                      handleFuelInputChange
+                    }
                     required
                   />
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="fuel-total">
-                    Total cost *
+                    Total cost
                   </label>
 
                   <input
@@ -816,11 +914,14 @@ function Fuel() {
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="Automatically calculated"
                     value={form.total_cost}
-                    onChange={handleChange}
-                    required
+                    readOnly
                   />
+
+                  <small className="form-help-text">
+                    Automatically calculated from quantity
+                    × price.
+                  </small>
                 </div>
 
                 <div className="form-group">
@@ -872,8 +973,8 @@ function Fuel() {
                   {saving
                     ? 'Saving...'
                     : editingLog
-                      ? 'Save changes'
-                      : 'Add fuel record'}
+                    ? 'Save changes'
+                    : 'Add fuel record'}
                 </button>
               </div>
             </form>
@@ -882,10 +983,6 @@ function Fuel() {
       )}
     </div>
   );
-}
-
-function IndianRupeeIcon() {
-  return <span className="rupee-symbol">₹</span>;
 }
 
 export default Fuel;

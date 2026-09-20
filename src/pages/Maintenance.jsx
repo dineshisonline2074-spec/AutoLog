@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Car,
   Edit3,
+  IndianRupee,
   Plus,
   Trash2,
   Wrench,
   X,
 } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { getCurrentUser } from '../services/authService';
 import { getVehicles } from '../services/vehicleService';
@@ -40,17 +42,24 @@ function formatCurrency(value) {
 function formatDate(date) {
   if (!date) return '-';
 
-  return new Date(`${date}T00:00:00`).toLocaleDateString(
-    'en-IN',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }
-  );
+  return new Date(
+    `${date}T00:00:00`
+  ).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function getDateValue(date) {
+  if (!date) return null;
+
+  return new Date(`${date}T00:00:00`);
 }
 
 function Maintenance() {
+  const [searchParams] = useSearchParams();
+
   const [user, setUser] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [records, setRecords] = useState([]);
@@ -65,9 +74,22 @@ function Maintenance() {
   const [success, setSuccess] = useState('');
 
   const [showModal, setShowModal] = useState(false);
-  const [editingRecord, setEditingRecord] = useState(null);
+  const [editingRecord, setEditingRecord] =
+    useState(null);
 
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState({
+    ...initialForm,
+  });
+
+  useEffect(() => {
+    const vehicleFromUrl = searchParams.get('vehicle');
+
+    if (vehicleFromUrl) {
+      setSelectedVehicle(vehicleFromUrl);
+    } else {
+      setSelectedVehicle('all');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadMaintenancePage();
@@ -98,6 +120,11 @@ function Maintenance() {
       setVehicles(vehicleData);
       setRecords(maintenanceData);
     } catch (err) {
+      console.error(
+        'Maintenance page loading failed:',
+        err
+      );
+
       setError(
         err.message ||
           'Unable to load maintenance records.'
@@ -128,41 +155,61 @@ function Maintenance() {
     [filteredRecords]
   );
 
+  const today = useMemo(() => {
+    const value = new Date();
+    value.setHours(0, 0, 0, 0);
+    return value;
+  }, []);
+
   const upcomingRecords = useMemo(() => {
-    const today = new Date();
+    return filteredRecords
+      .filter((record) => {
+        if (!record.next_service_date) {
+          return false;
+        }
 
-    today.setHours(0, 0, 0, 0);
+        const nextDate = getDateValue(
+          record.next_service_date
+        );
 
-    return filteredRecords.filter((record) => {
-      if (!record.next_service_date) {
-        return false;
-      }
-
-      return (
-        new Date(
-          `${record.next_service_date}T00:00:00`
-        ) >= today
+        return nextDate && nextDate >= today;
+      })
+      .sort(
+        (a, b) =>
+          getDateValue(a.next_service_date) -
+          getDateValue(b.next_service_date)
       );
-    });
-  }, [filteredRecords]);
+  }, [filteredRecords, today]);
 
   const overdueRecords = useMemo(() => {
-    const today = new Date();
+    return filteredRecords
+      .filter((record) => {
+        if (!record.next_service_date) {
+          return false;
+        }
 
-    today.setHours(0, 0, 0, 0);
+        const nextDate = getDateValue(
+          record.next_service_date
+        );
 
-    return filteredRecords.filter((record) => {
-      if (!record.next_service_date) {
-        return false;
-      }
-
-      return (
-        new Date(
-          `${record.next_service_date}T00:00:00`
-        ) < today
+        return nextDate && nextDate < today;
+      })
+      .sort(
+        (a, b) =>
+          getDateValue(b.next_service_date) -
+          getDateValue(a.next_service_date)
       );
-    });
-  }, [filteredRecords]);
+  }, [filteredRecords, today]);
+
+  const scheduledRecords = useMemo(
+    () =>
+      filteredRecords.filter(
+        (record) =>
+          record.next_service_date ||
+          record.next_service_odometer
+      ),
+    [filteredRecords]
+  );
 
   function getVehicleName(vehicleId) {
     const vehicle = vehicles.find(
@@ -197,13 +244,14 @@ function Maintenance() {
       vehicle_id: record.vehicle_id || '',
       service_type: record.service_type || '',
       date: record.date || '',
-      odometer: record.odometer || '',
-      cost: record.cost || '',
-      service_center: record.service_center || '',
+      odometer: record.odometer ?? '',
+      cost: record.cost ?? '',
+      service_center:
+        record.service_center || '',
       next_service_date:
         record.next_service_date || '',
       next_service_odometer:
-        record.next_service_odometer || '',
+        record.next_service_odometer ?? '',
       notes: record.notes || '',
     });
 
@@ -217,7 +265,9 @@ function Maintenance() {
 
     setShowModal(false);
     setEditingRecord(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+    });
   }
 
   function handleChange(event) {
@@ -252,8 +302,41 @@ function Maintenance() {
       return;
     }
 
-    if (!form.odometer) {
-      setError('Please enter the odometer reading.');
+    if (
+      form.odometer === '' ||
+      Number(form.odometer) < 0
+    ) {
+      setError(
+        'Please enter a valid odometer reading.'
+      );
+      return;
+    }
+
+    if (
+      form.cost !== '' &&
+      Number(form.cost) < 0
+    ) {
+      setError('Please enter a valid service cost.');
+      return;
+    }
+
+    if (
+      form.next_service_odometer !== '' &&
+      Number(form.next_service_odometer) < 0
+    ) {
+      setError(
+        'Please enter a valid next service odometer.'
+      );
+      return;
+    }
+
+    if (
+      form.next_service_date &&
+      form.next_service_date < form.date
+    ) {
+      setError(
+        'Next service date cannot be earlier than the service date.'
+      );
       return;
     }
 
@@ -273,7 +356,7 @@ function Maintenance() {
         next_service_date:
           form.next_service_date || null,
         next_service_odometer:
-          form.next_service_odometer
+          form.next_service_odometer !== ''
             ? Number(form.next_service_odometer)
             : null,
         notes: form.notes.trim() || null,
@@ -315,13 +398,20 @@ function Maintenance() {
         );
       }
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setShowModal(false);
         setEditingRecord(null);
-        setForm(initialForm);
+        setForm({
+          ...initialForm,
+        });
         setSuccess('');
       }, 700);
     } catch (err) {
+      console.error(
+        'Maintenance record save failed:',
+        err
+      );
+
       setError(
         err.message ||
           'Unable to save the maintenance record.'
@@ -361,10 +451,15 @@ function Maintenance() {
         'Maintenance record deleted successfully.'
       );
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setSuccess('');
       }, 2500);
     } catch (err) {
+      console.error(
+        'Maintenance record deletion failed:',
+        err
+      );
+
       setError(
         err.message ||
           'Unable to delete the maintenance record.'
@@ -382,7 +477,7 @@ function Maintenance() {
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page maintenance-page">
       <section className="page-header dashboard-header">
         <div>
           <p className="eyebrow">MAINTENANCE</p>
@@ -407,13 +502,19 @@ function Maintenance() {
       </section>
 
       {error && (
-        <div className="dashboard-error" role="alert">
+        <div
+          className="dashboard-error"
+          role="alert"
+        >
           {error}
         </div>
       )}
 
       {success && (
-        <div className="dashboard-success" role="status">
+        <div
+          className="dashboard-success"
+          role="status"
+        >
           {success}
         </div>
       )}
@@ -432,13 +533,13 @@ function Maintenance() {
               maintenance records.
             </p>
 
-            <a
-              href="/vehicles"
+            <Link
+              to="/vehicles"
               className="small-primary-button"
             >
               <Plus size={17} />
               Add vehicle
-            </a>
+            </Link>
           </div>
         </section>
       ) : (
@@ -453,7 +554,9 @@ function Maintenance() {
                 id="maintenance-vehicle-filter"
                 value={selectedVehicle}
                 onChange={(event) =>
-                  setSelectedVehicle(event.target.value)
+                  setSelectedVehicle(
+                    event.target.value
+                  )
                 }
               >
                 <option value="all">
@@ -469,6 +572,14 @@ function Maintenance() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="maintenance-filter-summary">
+              {selectedVehicle === 'all'
+                ? 'Showing all vehicles'
+                : `Showing ${getVehicleName(
+                    selectedVehicle
+                  )}`}
             </div>
           </section>
 
@@ -488,9 +599,7 @@ function Maintenance() {
 
             <article className="maintenance-stat-card">
               <div className="maintenance-stat-icon green">
-                <span className="maintenance-rupee">
-                  ₹
-                </span>
+                <IndianRupee size={21} />
               </div>
 
               <div>
@@ -528,11 +637,33 @@ function Maintenance() {
             </article>
           </section>
 
+          {overdueRecords.length > 0 && (
+            <section className="maintenance-alert-card">
+              <div className="maintenance-alert-icon">
+                <Wrench size={19} />
+              </div>
+
+              <div>
+                <strong>
+                  {overdueRecords.length === 1
+                    ? '1 service is overdue'
+                    : `${overdueRecords.length} services are overdue`}
+                </strong>
+
+                <span>
+                  Review your maintenance history and
+                  schedule the required service.
+                </span>
+              </div>
+            </section>
+          )}
+
           {upcomingRecords.length > 0 && (
             <section className="dashboard-card upcoming-service-card">
               <div className="card-header">
                 <div>
                   <h2>Upcoming service</h2>
+
                   <p>
                     Your next scheduled maintenance.
                   </p>
@@ -543,15 +674,6 @@ function Maintenance() {
 
               <div className="upcoming-service-list">
                 {upcomingRecords
-                  .sort(
-                    (a, b) =>
-                      new Date(
-                        `${a.next_service_date}T00:00:00`
-                      ) -
-                      new Date(
-                        `${b.next_service_date}T00:00:00`
-                      )
-                  )
                   .slice(0, 3)
                   .map((record) => (
                     <div
@@ -562,7 +684,7 @@ function Maintenance() {
                         <Wrench size={18} />
                       </div>
 
-                      <div>
+                      <div className="upcoming-service-main">
                         <strong>
                           {record.service_type}
                         </strong>
@@ -596,6 +718,7 @@ function Maintenance() {
             <div className="card-header">
               <div>
                 <h2>Service history</h2>
+
                 <p>
                   Your latest maintenance records.
                 </p>
@@ -641,81 +764,101 @@ function Maintenance() {
                   </thead>
 
                   <tbody>
-                    {filteredRecords.map((record) => (
-                      <tr key={record.id}>
-                        <td>
-                          {formatDate(record.date)}
-                        </td>
+                    {filteredRecords.map((record) => {
+                      const isOverdue =
+                        record.next_service_date &&
+                        getDateValue(
+                          record.next_service_date
+                        ) < today;
 
-                        <td>
-                          <strong>
-                            {getVehicleName(
-                              record.vehicle_id
+                      return (
+                        <tr key={record.id}>
+                          <td>
+                            {formatDate(record.date)}
+                          </td>
+
+                          <td>
+                            <strong>
+                              {getVehicleName(
+                                record.vehicle_id
+                              )}
+                            </strong>
+                          </td>
+
+                          <td>
+                            <strong>
+                              {record.service_type}
+                            </strong>
+                          </td>
+
+                          <td>
+                            {Number(
+                              record.odometer || 0
+                            ).toLocaleString('en-IN')}{' '}
+                            km
+                          </td>
+
+                          <td>
+                            <strong>
+                              {formatCurrency(
+                                record.cost
+                              )}
+                            </strong>
+                          </td>
+
+                          <td>
+                            {record.service_center ||
+                              'Not added'}
+                          </td>
+
+                          <td>
+                            {record.next_service_date ? (
+                              <span
+                                className={
+                                  isOverdue
+                                    ? 'service-status-overdue'
+                                    : 'service-status-upcoming'
+                                }
+                              >
+                                {formatDate(
+                                  record.next_service_date
+                                )}
+                              </span>
+                            ) : (
+                              'Not scheduled'
                             )}
-                          </strong>
-                        </td>
+                          </td>
 
-                        <td>
-                          <strong>
-                            {record.service_type}
-                          </strong>
-                        </td>
+                          <td>
+                            <div className="table-actions">
+                              <button
+                                type="button"
+                                className="icon-action-button"
+                                title="Edit service"
+                                aria-label="Edit service"
+                                onClick={() =>
+                                  openEditModal(record)
+                                }
+                              >
+                                <Edit3 size={16} />
+                              </button>
 
-                        <td>
-                          {Number(
-                            record.odometer || 0
-                          ).toLocaleString('en-IN')}{' '}
-                          km
-                        </td>
-
-                        <td>
-                          <strong>
-                            {formatCurrency(record.cost)}
-                          </strong>
-                        </td>
-
-                        <td>
-                          {record.service_center ||
-                            'Not added'}
-                        </td>
-
-                        <td>
-                          {record.next_service_date
-                            ? formatDate(
-                                record.next_service_date
-                              )
-                            : 'Not scheduled'}
-                        </td>
-
-                        <td>
-                          <div className="table-actions">
-                            <button
-                              type="button"
-                              className="icon-action-button"
-                              title="Edit service"
-                              aria-label="Edit service"
-                              onClick={() =>
-                                openEditModal(record)
-                              }
-                            >
-                              <Edit3 size={16} />
-                            </button>
-
-                            <button
-                              type="button"
-                              className="icon-action-button danger"
-                              title="Delete service"
-                              aria-label="Delete service"
-                              onClick={() =>
-                                handleDelete(record)
-                              }
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              <button
+                                type="button"
+                                className="icon-action-button danger"
+                                title="Delete service"
+                                aria-label="Delete service"
+                                onClick={() =>
+                                  handleDelete(record)
+                                }
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -729,7 +872,9 @@ function Maintenance() {
           className="modal-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target === event.currentTarget
+            ) {
               closeModal();
             }
           }}
@@ -804,12 +949,12 @@ function Maintenance() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="service_type">
+                  <label htmlFor="service-type">
                     Service type *
                   </label>
 
                   <input
-                    id="service_type"
+                    id="service-type"
                     name="service_type"
                     type="text"
                     placeholder="e.g. Engine oil change"
@@ -870,12 +1015,12 @@ function Maintenance() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="service_center">
+                  <label htmlFor="service-center">
                     Service center
                   </label>
 
                   <input
-                    id="service_center"
+                    id="service-center"
                     name="service_center"
                     type="text"
                     placeholder="e.g. Maruti Service Center"
@@ -885,12 +1030,12 @@ function Maintenance() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="next_service_date">
+                  <label htmlFor="next-service-date">
                     Next service date
                   </label>
 
                   <input
-                    id="next_service_date"
+                    id="next-service-date"
                     name="next_service_date"
                     type="date"
                     value={form.next_service_date}
@@ -899,18 +1044,20 @@ function Maintenance() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="next_service_odometer">
+                  <label htmlFor="next-service-odometer">
                     Next service odometer
                   </label>
 
                   <input
-                    id="next_service_odometer"
+                    id="next-service-odometer"
                     name="next_service_odometer"
                     type="number"
                     min="0"
                     step="0.1"
                     placeholder="e.g. 30000"
-                    value={form.next_service_odometer}
+                    value={
+                      form.next_service_odometer
+                    }
                     onChange={handleChange}
                   />
                 </div>
@@ -949,8 +1096,8 @@ function Maintenance() {
                   {saving
                     ? 'Saving...'
                     : editingRecord
-                      ? 'Save changes'
-                      : 'Add service'}
+                    ? 'Save changes'
+                    : 'Add service'}
                 </button>
               </div>
             </form>

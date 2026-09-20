@@ -5492,3 +5492,194 @@ body.sidebar-open {
     border-radius: 16px !important;
   }
 }
+/* =========================================================
+   AUTOLOG — GLOBAL MODAL VISIBILITY FIX
+   Fixes transparent Add/Edit modals across:
+   Vehicles, Fuel, Maintenance and Expenses
+   ========================================================= */
+
+/* Modal backdrop */
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 24px !important;
+
+  background: rgba(15, 23, 42, 0.52) !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  overflow-y: auto !important;
+
+  pointer-events: auto !important;
+}
+
+/* Every AutoLog modal must be fully opaque */
+.vehicle-modal,
+.fuel-modal,
+.maintenance-modal,
+.expense-modal {
+  position: relative !important;
+  z-index: 10000 !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  background: #ffffff !important;
+  color: #172033 !important;
+
+  border: 1px solid #e5e7eb !important;
+  border-radius: 20px !important;
+
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.24),
+    0 8px 24px rgba(15, 23, 42, 0.12) !important;
+
+  isolation: isolate !important;
+
+  pointer-events: auto !important;
+}
+
+/* Modal contents must remain fully visible */
+.vehicle-modal *,
+.fuel-modal *,
+.maintenance-modal *,
+.expense-modal * {
+  opacity: 1 !important;
+}
+
+/* Headers */
+.vehicle-modal .modal-header,
+.fuel-modal .modal-header,
+.maintenance-modal .modal-header,
+.expense-modal .modal-header {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Form labels */
+.vehicle-modal label,
+.fuel-modal label,
+.maintenance-modal label,
+.expense-modal label {
+  color: #344054 !important;
+  opacity: 1 !important;
+}
+
+/* Inputs and selects */
+.vehicle-modal input,
+.vehicle-modal select,
+.vehicle-modal textarea,
+.fuel-modal input,
+.fuel-modal select,
+.fuel-modal textarea,
+.maintenance-modal input,
+.maintenance-modal select,
+.maintenance-modal textarea,
+.expense-modal input,
+.expense-modal select,
+.expense-modal textarea {
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  background: #ffffff !important;
+  color: #172033 !important;
+
+  border: 1px solid #d7dce5 !important;
+
+  pointer-events: auto !important;
+}
+
+/* Placeholder text */
+.vehicle-modal input::placeholder,
+.vehicle-modal textarea::placeholder,
+.fuel-modal input::placeholder,
+.fuel-modal textarea::placeholder,
+.maintenance-modal input::placeholder,
+.maintenance-modal textarea::placeholder,
+.expense-modal input::placeholder,
+.expense-modal textarea::placeholder {
+  opacity: 1 !important;
+  color: #98a2b3 !important;
+}
+
+/* Select options */
+.vehicle-modal option,
+.fuel-modal option,
+.maintenance-modal option,
+.expense-modal option {
+  background: #ffffff !important;
+  color: #172033 !important;
+}
+
+/* Focus state */
+.vehicle-modal input:focus,
+.vehicle-modal select:focus,
+.vehicle-modal textarea:focus,
+.fuel-modal input:focus,
+.fuel-modal select:focus,
+.fuel-modal textarea:focus,
+.maintenance-modal input:focus,
+.maintenance-modal select:focus,
+.maintenance-modal textarea:focus,
+.expense-modal input:focus,
+.expense-modal select:focus,
+.expense-modal textarea:focus {
+  outline: none !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+}
+
+/* Modal footer */
+.vehicle-modal .modal-footer,
+.fuel-modal .modal-footer,
+.maintenance-modal .modal-footer,
+.expense-modal .modal-footer {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Buttons remain clickable */
+.vehicle-modal button,
+.fuel-modal button,
+.maintenance-modal button,
+.expense-modal button {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Currency input used by Expenses */
+.expense-modal .currency-input {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.expense-modal .currency-input input {
+  opacity: 1 !important;
+  background: #ffffff !important;
+  color: #172033 !important;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: flex-start !important;
+    padding: 12px !important;
+  }
+
+  .vehicle-modal,
+  .fuel-modal,
+  .maintenance-modal,
+  .expense-modal {
+    width: 100% !important;
+    max-height: calc(100vh - 24px) !important;
+    border-radius: 16px !important;
+  }
+}
